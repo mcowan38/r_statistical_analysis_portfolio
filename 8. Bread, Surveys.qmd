@@ -1,0 +1,87 @@
+---
+title: "STAC32 - Assignment 8"
+author: "Michael Cowan - 997887032"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(broom)
+```
+
+## 1. Bread
+
+a\. We'll use read_csv here.
+
+```{r}
+bread <- read_csv("http://ritsokiguess.site/datafiles/bread_wide.csv")
+bread
+```
+
+b\. We'll use pivot_longer and a couple other arguments to arrange the data appropriately. Specifically, we'll select columns with an underscore, split the column names into yeast and temperature using the underscore as the separator, name the new column for measurements as height, and convert the temperature and yeast columns to numeric using str_remove (https://www.statology.org/str_remove-in-r/).
+
+```{r}
+bread_adjusted <- bread %>%
+  pivot_longer(
+    cols = contains("_"),
+    names_to = c("yeast", "temperature"),
+    names_sep = "_",
+    values_to = "height") %>%
+    mutate(yeast = as.numeric(stringr::str_remove(yeast, "yeast")),
+         temperature = as.numeric(stringr::str_remove(temperature, "temp")))
+bread_adjusted
+```
+
+c\. Now we'll make a spaghetti plot to graph the data.
+
+```{r}
+spaghetti_bread <- 
+  ggplot(bread_adjusted, aes(x = yeast, y = height, 
+  colour = as.factor(temperature))) + geom_point() + 
+  geom_line()
+spaghetti_bread
+```
+
+## 2. American Community Survey
+
+a\. Here I'll use read_table to view the data.
+
+```{r}
+community <- read_table("http://ritsokiguess.site/datafiles/acs4.txt")
+community
+```
+
+b\. We'll use pivot_wider here to create columns out of the values in estimate -- specifically, pop_housed, pop_renter, and median_rent.
+
+```{r}
+community_adjusted <- community %>%
+  pivot_wider(names_from = variable, values_from = estimate)
+community_adjusted
+```
+
+c\. The output produced six rows based on how pivot_wider expands the data frame to accommodate the new columns. Because it creates separate rows for each value in variable, we're invariably going to have multiple rows for each combination of 'geoid' and 'name', resulting in six rows in this case -- with lots of missing data (NA).
+
+d\. Having struggled for hours using broom and combinations of pivot_wider and pivot_longer to try to remove the redundancies, I've found the id_cols argument within the tidyverse package (https://tidyr.tidyverse.org/reference/pivot_wider.html).
+
+This, combined with what we've learned about pivot_wider, names_from, and values_from, managed to get the correct output.
+
+```{r}
+community_adjusted_final <- community %>%
+  pivot_wider(id_cols = c("geoid", "name"),
+  names_from = variable,
+  values_from = estimate)
+community_adjusted_final
+```
+
+Alternatively (the original way from class):
+
+```{r}
+community_adjusted_alternative <- community %>%
+  pivot_wider (names_from = "variable", values_from = c("estimate", "error")) %>%
+  select ("geoid", "name", "estimate_pop_housed", "estimate_pop_renter", "estimate_median_rent")
+community_adjusted_alternative
+```

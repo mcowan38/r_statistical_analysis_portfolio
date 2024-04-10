@@ -1,0 +1,147 @@
+---
+title: "STAC32 - Assignment 4"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+## 1. Prison stress
+
+a\. I'll read in the data -- read_csv will work here.
+
+```{r}
+prison <- read_csv("http://www.ritsokiguess.site/datafiles/PrisonStress.csv")
+prison
+```
+
+b\. A boxplot will be suitable for plotting the categorical variable (Group) and the quantitative variable (post-study Stress scores).
+
+```{r}
+ggplot(data = prison, aes(x = Group, y = PSSafter)) + geom_boxplot() +
+  labs(y = "Post-Study Stress Scores")
+```
+
+c\. Based on the implied directionality of the researchers main aim -- that is, **reduced stress** on average -- a one-sided independent samples t-test is most appropriate here. We'll stick to the Welch Two Sample t-test given we haven't done an analysis of variances (unsure if the spreads are equal, although the boxplots seem to indicate they are close), and there is unequal n in the groups.
+
+```{r}
+result <- t.test(PSSafter ~ Group, data = prison, alternative = "less")
+#  Note: this will specify a one-tailed test where the hypothesis is that the mean of the first group (alphabetically, Control) is less than the mean of the second group (Sport).
+result
+```
+
+Given the results of the t-test, we would conclude that there is no statistically significant difference that the physical training program (Sport) reduced stress scores more than the Control group, t = 1.3361, p \> .05, at a 95% Confidence Interval. Although the mean stress score for the Sport group ( mean = 20.00) was lower than the Control (mean = 23.73) the difference is not statistically significant, and could have arisen due to random chance. Thus, we fail to reject the null hypothesis.
+
+d\. Once again, a boxplot will be suitable for plotting the categorical variable (Group) and the quantitative variable (pre-study Stress scores).
+
+```{r}
+ggplot(data = prison, aes(x = Group, y = PSSbefore)) + geom_boxplot() +
+  labs(y = "Pre-Study Stress Scores")
+```
+
+Noticeably, the Sport group started with higher stress scores compared to the Control group -- and there appears to be a high outlier in the Sport group.
+
+The initial higher stress levels in the Sport group add nuance to the previous conclusion. While the t-test did not find a statistically significant reduction in stress for the Sport group compared to the Control group post-study, it's noteworthy that the Sport group had a higher initial stress level and still ended up with similar or slightly lower scores than the control group. One might infer that the Sport group managed to reduce their stress on average, despite starting at a higher baseline, whereas the Control group saw an increase in their stress levels compared to their pre-study levels.
+
+e\. The Control group on average, it would seem, started at a lower level of stress compared to the Sport group, and experienced an increase in stress scores after the study. This might suggest that observed differences between the groups post-study might not solely be attributed to the treatment itself, but rather to their initial differing levels and the natural progression of stress in the Control group.
+
+Furthermore, the sample sizes of the groups are unequal, with 15 participants in the Sport group and only 11 in the Control group. The unequal sample sizes can affect the power and sensitivity of the t-test, potentially making the results less reliable.
+
+f\. Let's obtain a bootstrap sampling distribution of the sample mean for the PSSafter values in the Control group. First we'll simulate 1000 iterations, drawing a random sample with replacement from the PSSafter values of the Control group, and then calculate the mean of the sample.
+
+**Note**: The visualization of the distribution of these bootstrap sample means will be used to assess the variability and shape of potential sample means we might expect if we were to repeatedly sample the population.
+
+```{r}
+set.seed(123)
+bootstrap_results <- tibble(sim = 1:1000) %>% 
+  rowwise() %>% 
+  mutate(sample = list(sample(prison$PSSafter[prison$Group == "Control"], replace = TRUE))) %>% 
+  mutate(sample_mean = mean(sample))
+bootstrap_plot <- ggplot(bootstrap_results, aes(x = sample_mean)) + 
+  geom_histogram(bins = 10) + 
+  labs(x = "Sample Mean of PSSafter for Control Group",
+       y = "Frequency")
+print(bootstrap_plot)
+```
+
+The shape of the bootstrap histogram of the Control group suggests a near-normal distribution -- aligning with the principles of the Central Limit Theorem. While the CLT predicts the sampling distribution of the sample mean will trend towards a normal distribution as the sample size grows, this transition can be gradual for smaller sample sizes; in the case of the Control group -- having just 11 participants -- the resemblance to a normal shape suggests the t-test is a reasonable approach (even with the Control group's smaller sample size).
+
+## 2. Power and the exponential distribution
+
+a\. We'll draw a random sample of 100 observation from an exponential distribution with a mean of 5, and make a histogram of the sample. Given how "rate" functions (one over the mean) we'll need to set it to 0.2.
+
+```{r}
+set.seed(123)
+# Sample
+random_sample <- tibble(exp_sample = rexp(100, rate = 0.2))
+
+# Histogram Plot
+ggplot(data = random_sample, aes(x = exp_sample)) + 
+  geom_histogram(bins = 8) + 
+  labs(x = "Value", 
+       y = "Frequency")
+```
+
+Visibly, the distribution is characterized by its long tail on the right (right-skew) -- a clear deviation from a normal distribution.
+
+b\. We'll obtain a bootstrap sampling distribution of the sample mean, then plot it with another histogram.
+
+```{r}
+set.seed(123)
+# Plot the bootstrap
+bootstrap_results <- tibble(sim = 1:1000) %>% 
+  rowwise() %>% 
+  mutate(sample = list(sample(random_sample$exp_sample, replace = TRUE))) %>% 
+  mutate(sample_mean = mean(sample))
+
+# Plot the bootstrap
+ggplot(bootstrap_results, aes(x = sample_mean)) + 
+  geom_histogram(bins = 12) + 
+  labs(x = "Sample Mean",
+       y = "Frequency")
+```
+
+Visibly, the shape of the bootstrap sampling distribution approximates normality -- in line with CLT.
+
+c\. Although the population (in this case, an exponential distribution) does not appear to have a normal distribution, the CLT suggests that the sampling distribution of the sample mean will approach/approximate normality as the sample size increases. Thus, considering our sample size of 100 -- which is reasonably large (threshold we have discussed being 30) -- the distribution of the sample mean will still be expected to be normal. As such, it is still appropriate to use a one-sample t-test in hypothesis tests of the population, given the assumption of normality will still be met.
+
+d\. We'll estimate the power of a one-sample t-test via simulation, in attempt to reject the null hypothesis that the population mean is 6 (against a two-sided alternative) when sampling from an exponential distribution with a mean of 5 and a sample size of 100.
+
+```{r}
+set.seed(123)
+simulations <- tibble(sim = 1:1000) %>% 
+  rowwise() %>% 
+  mutate(sample = list(rexp(100, rate = 0.2))) %>% 
+  mutate(t_result = list(t.test(sample, mu = 6))) %>% 
+  # Note: defaults to two-sided when the "alternative" argument is not specified.
+  mutate(p_val = t_result$p.value)
+
+# Here, sum will help count the proportion of simulations where p-value is less than 0.05
+estimating_the_power <- sum(simulations$p_val < 0.05) / 1000
+estimating_the_power
+
+```
+
+Seemingly, the power of the one-sample t-test to reject the null hypothesis is 0.518.
+
+e\. Let's make a small adjustment to the code to get a power of 0.75 in the same situation. Ultimately, we can just increase the sample size here and use trial and error (this method led us to 175 in order to to achieve 0.749).
+
+```{r}
+set.seed(123)
+
+simulations_adjusted <- tibble(sim = 1:1000) %>% 
+  rowwise() %>% 
+  mutate(sample = list(rexp(175, rate = 0.2))) %>%  # Adjusted sample size
+  mutate(t_result = list(t.test(sample, mu = 6))) %>% 
+  mutate(p_val = t_result$p.value)
+
+# Counting the number of simulations where p-value is less than 0.05
+estimating_the_power_adjusted <- sum(simulations_adjusted$p_val < 0.05) / 1000
+estimating_the_power_adjusted
+```

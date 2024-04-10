@@ -1,0 +1,111 @@
+---
+title: "STAD29 - Assignment 6"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(MASS) # issue with "select", that conflicts with our reg. select.
+library(marginaleffects)
+library(broom)
+library(car) # for Levene's test
+library(nnet) # for multinom
+library(survival)
+library(survminer)
+library(conflicted) # To deal with MASS, we use "conflicted" package.
+conflict_prefer("select", "dplyr") # whenever you run into "this", use the one from tidyverse ("dplyr").
+conflict_prefer("filter", "dplyr")
+conflict_prefer("rename", "dplyr")
+conflict_prefer("summarize", "dplyr")
+```
+
+## 1. Drug & Electroshock & Solving Simple Tasks
+
+**a**.
+
+```{r}
+drugshock <- read_csv("http://ritsokiguess.site/datafiles/drugshock.csv")
+drugshock
+```
+
+**b.** Given there's 1 Quantitative and 2 Categorical variables, it's appropriate to draw Grouped Boxplots:
+
+```{r}
+drugshock_boxplot <- ggplot(drugshock, aes(x = xdrug, y = response, fill = xshock)) + geom_boxplot()
+drugshock_boxplot
+```
+
+**c**.
+
+First we have to calculate the group means:
+
+```{r}
+drugshock_summary <- drugshock %>%
+  group_by(xdrug, xshock) %>%
+  summarize(n = n(), mean = mean(response))
+drugshock_summary
+```
+
+Now we make an Interaction Plot (mean of response variable against one of the explanatory, using other one as groups, starting from drugshock_summary):
+
+```{r}
+drugshock_iplot <- ggplot(drugshock_summary, aes(x = xdrug, y = mean,
+  colour = xshock, group = xshock)) +
+  geom_point() + geom_line() # need colour AND group to be the SAME THING (otherwise it'll assume we're using something else)
+drugshock_iplot
+```
+
+**d**.
+
+Given the lines are definitely not parallel in the interaction plot (this is also visible if we were to attach lines to the boxplots) we would expect to see a significant interaction. Specifically, the downward slope of the red line (from drug_no to drug_yes for shock_no) suggests the drug treatment decreases the mean when there is no shock. Conversely, the upward slope of the blue line (drug_no to drug_yes for shock_yes) suggests the drug treatment increases the mean where there is a shock.
+
+Ultimately, the drug appears to have an opposite effect on number of tasks completed (response) depending on whether or not shock is present; without shock, the drug decreases the mean, whereas with shock the drug increases it. Given the visual width of the difference between the drug_no boxplots (for shock_no and shock_yes), which coalesce in the presence of the drug (drug_yes), we can expect the interaction to be significant (though we'll need an ANOVA to be certain).
+
+**e**.
+
+```{r}
+drugshock.1 <- aov(response ~ xdrug * xshock, data = drugshock)
+# This is main effect of xdrug, main effect of xshock, + interaction (*) between.
+summary(drugshock.1)
+```
+
+Our suspicions have been confirmed: the interaction between drug and shock (xdrug:xshock) is statistically significant (p \< 0.001).
+
+To summarize the additional findings, there is a no significant main effect of xdrug (p = 0.45398) on number of tasks completed. However, there is a main effect of xshock (p \< 0). We'll need further analyses.
+
+**f**.
+
+In this study, the researchers are interested in the combination of both the drug and electroshock affected the number of tasks the subjects could solve (as well as, state in the question, the main effects). Because there is a significant interaction, we need to further look at the simple effects -- that is, the effect of one variable (the presence or lack of the drug) conditional on other variable (the presence or lack of the shock). This is effectively two one-way ANOVAs we'll now need to run -- looking at shock or not at each level of drug individually.
+
+Our first simple effect (for drug_no):
+
+```{r}
+drugshock %>%
+  filter(xdrug == "drug_no") %>% # Grab the no-drug group.
+  aov(response ~ xshock, data = .) %>%
+  summary()
+# Compare response (tasks completed) to shock presence, ONLY for drug_no group.
+```
+
+Given the p-value for xshock is statistically significant (p \< 0) we can conclude that the presence of shock significantly affects the response (participant tasks completed) when no drug is administered.
+
+Then our second one (for drug_yes):
+
+```{r}
+drugshock %>%
+  filter(xdrug == "drug_yes") %>% # Grab the yes-drug group.
+  aov(response ~ xshock, data = .) %>%
+  summary()
+ # Compare response (tasks completed) to shock presence, ONLY for drug_yes group.
+```
+
+Given the p-value for xshock is not statistically significant (p = 0.34), we can further conclude that the presence of shock does not significantly affects the response (participant tasks completed) when the drug is administered.
+
+**g**.
+
+There is no value in running Tukey as a follow-up to any of these simple effects because there are only two levels of xshock to compare (presence or not of electroshock therapy). Tukey's -- a type of multiple comparisons -- can not add any further value unless there was more than two levels to compare.

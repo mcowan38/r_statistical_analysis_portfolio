@@ -1,0 +1,172 @@
+---
+title: "STAD29 - Assignment 3"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+## 1. Log odds & poisoning rats
+
+```{r}
+library(tidyverse)
+library(MASS) # issue with "select", that conflicts with our reg. select.
+library(marginaleffects)
+library(broom)
+library(nnet)
+library(conflicted) # To deal with MASS, we use "conflicted" package.
+conflict_prefer("select", "dplyr") # whenever you run into "this", use the one from tidyverse ("dplyr").
+conflict_prefer("filter", "dplyr")
+conflict_prefer("rename", "dplyr")
+conflict_prefer("summarize", "dplyr")
+```
+
+**a.** The prediction for a poison dose of 3.2 is -0.66 log odds. Given this is a negative number, this is the log-odds indicating that as poison dose increases, the probability of a rat living decreases.
+
+```{r}
+m=-0.9448
+x=3.2
+b=2.3619
+y=m*x+b
+y
+```
+
+**b.** **Converting the log odds of -0.66 to odds via "exp"** gives us 0.516973 (the odds of the rat living).
+
+```{r}
+log_odds1 = -0.66146
+d1 = exp(log_odds1)
+d1
+```
+
+Converting this to a predicted probability gives us 0.3404117 (\~34.04% the rat will live).
+
+```{r}
+p=d1/(1+d1)
+p
+```
+
+**c.** In the context of survival probability of rats based on the poison dose, -0.9448 is the coefficient for the dose variable (indicative of the negative change in the log-odds of survival for each one-unit increase in the dose of poison). With each unit of poison, the log-odds of survival diminish (which would translate to a reduced probability of survival)
+
+```{r}
+log_odds2 = -0.9448
+d2 = exp(log_odds2)
+d2
+```
+
+Using "exp" on the coefficient gives an odds-ratio value of 0.3887573 (ratio below one shows a negative association between dose and survival probability).
+
+## 2. Carrots
+
+**a.** We'll read in the data with read_csv.
+
+```{r}
+carrots <- read_csv("http://ritsokiguess.site/datafiles/carrots_pref.csv")
+carrots
+```
+
+**b.**
+
+Ordinal logistic regression would be a sensible method of analysis because the **response variabl**e -- **preference** of type of carrot -- has a natural hierarchical order/ranking, which is appropriate even though we can't distinguish the magnitude of the difference between preference rankings (e.g., 1-2, 2-3, etc.) Ultimately, this is more suitable than nominal logistic regression, which treats outcomes as unordered categories.
+
+Since ordinal logistic regression is designed to handle dependent variables with a natural order but unknown intervals between levels, it fits the analysis goal of predicting 'Preference' based on 'Product' and 'eat_carrots'.
+
+**c.** We'll use the regression code from lecture (fit ordinal logistic regression with "**polr**" from "MASS" package). We'll make sure categorical variables are factored.
+
+```{r}
+carrots %>% 
+  mutate(Preference=factor(Preference, levels = 1:7, ordered = TRUE),
+         Product = factor(Product)) -> carrots_mutated1
+carrots_mutated1
+```
+
+```{r}
+carrots.1 <- polr(Preference ~ Product + eat_carrots, 
+  data = carrots_mutated1,
+  Hess=TRUE)
+```
+
+**d.**
+
+```{r}
+drop1(carrots.1, test = "Chisq")
+```
+
+Based on the "drop1" output, "Product" is a very significant predictor and can't be removed from the model. Conversely, "eat_carrots" is a borderline case (p \< 0.1 but \> 0.05), suggesting we can remove it from the model.
+
+-   **Note**: that the categorical Product is treated as a whole (which is a reason to use drop1 ): we know that Product has to stay, that is, that there are some differences in preference among the carrot types.
+
+**e.**
+
+We'll improve the model by taking out "eat_carrots":
+
+```{r}
+carrots.2 <- polr(Preference ~ Product, 
+  data = carrots_mutated1,
+  Hess=TRUE)
+summary(carrots.2)
+```
+
+Alternatively, the **easier way would have been to just use update**:
+
+```{r}
+carrots.2 <- update(carrots.1, .~. - eat_carrots)
+carrots.2
+```
+
+**f.**
+
+First we're checking the levels of product (the carrot names are a mess in the summary).
+
+```{r}
+levels(carrots_mutated1$Product)
+```
+
+Now we'll create a df using the carrot names:
+
+```{r}
+carrot_types <- tibble(Product = c("Bolero_E", "Bolero_L", "Major_E", "Major_L", "Navar_E", "Navar_L", "Nelson_E", "Nelson_L", "Turbo_E", "Turbo_L", "Yukon_E", "Yukon_L"))
+carrot_types
+```
+
+**g.**
+
+Here we'll use "cbind(predictions" on the "carrots.2" model with the new df, and display in wide format so its possible to compare the carrots types (rows) to the the probability of each preference score (columns):
+
+```{r}
+cbind(predictions(carrots.2, newdata = carrot_types)) %>% 
+  select(Product, estimate, group) %>%
+  pivot_wider(names_from = group, values_from = estimate) -> carrots_wide
+carrots_wide
+```
+
+Alternatively, I found a rename function where we can take the wide data and rename the columns with tidyverse using "rename" (which I don't think we've used before: [https://r-coder.com/rename-dplyr-r/#multiple-columns)]{.underline}
+
+This allows us to see the consumer score numerical value while understanding what it represents.
+
+```{r}
+carrots_wide_renamed <- carrots_wide %>%
+  rename(
+    "1: Strongly Dislike" = "1",
+    "2: Dislike" = "2",
+    "3: Slightly Dislike" = "3",
+    "4: Neutral" = "4",
+    "5: Slightly Like" = "5",
+    "6: Like" = "6",
+    "7: Strongly Like" = "7")
+carrots_wide_renamed
+```
+
+**h.**
+
+If you scan down each column, it's pretty apparent that the predicted probabilities of preference scores among the different types of carrot vary quite a bit. For example, if we look at the predicted probabilities columns for a score of "6", there's anywhere from a \~9% ("Turbo_E" carrot type) to \~30% ("Bolero_L" carrot type) chance of a consumer rating a carrot as "Like". Given this disparity appears in multiple columns, it makes intuitive sense that there was a statistically significant difference in preference scores among the different types of carrots.
+
+I tried to use plot_predictions to visualize a sort-of distribution of the probabilities below. Here, it's a bit easier to see the probability differences between each carrot type.
+
+```{r}
+plot_predictions(carrots.2, condition = c("Product"), type = "probs", draw = FALSE) %>%
+  ggplot(aes(x = group, y = estimate, color = Product, group = Product)) +
+  geom_point() + geom_smooth(se = FALSE, size = 0.5) + labs(x = "Preference Score", y = "Predicted Probability", color = "Carrot Type")
+```

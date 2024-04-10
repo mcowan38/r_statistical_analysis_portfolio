@@ -1,0 +1,97 @@
+---
+title: "STAC32 - Assignment 3"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+# 1. Why do people leave a company?
+
+a\. First I'll read in and display some of the employee survey data. This is a .csv file, so read_csv will be appropriate.
+
+```{r}
+survey <- read_csv("http://ritsokiguess.site/datafiles/survey-responses.csv")
+survey
+```
+
+b\. Next we'll read in the employee departure data, also using read_csv.
+
+```{r}
+departure <- read_csv("http://ritsokiguess.site/datafiles/departure-dates.csv")
+departure
+```
+
+c\. Let's create a combined data frame using left-join, so we can display all the information in the survey data frame and their departure date. We can see below that for those employees that did not leave the company within the next two years, their value in the departure_date column is \<NA\> -- indicating there was no match from the departure data frame.
+
+```{r}
+survey_and_departure <- survey %>%
+  left_join(departure, by = "iid")
+survey_and_departure
+```
+
+d\. We'll create a new column for employee status to indicate if an employee "Left" or "Stayed", using the mutate function.
+
+**Note:** This method of combining "ifelse" from mutate was derived from STAC32 PASIAS: https://ritsokiguess.site/pasias2/tidying-data.html#bikes-on-college. Ultimately, this code uses mutate to create a new 'status' from the prior 'departure_date' column in the data frame -- with the values of Stayed and Left (NA).
+
+```{r}
+survey_and_departure_new <- survey_and_departure %>%
+  mutate(status = ifelse(is.na(departure_date), "Stayed", "Left"))
+survey_and_departure_new
+```
+
+Now we'll create a boxplot, suitable to compare the categorical variable (status) and the quantitative variable (intention of leaving measured on a 10-point agreement scale) between the employees that actually left and the ones that stayed.
+
+```{r}
+ggplot(data = survey_and_departure_new, aes(x = status, y = intention)) + geom_boxplot()
+```
+
+e\. The plot suggests that there's a correlation between an employee's measured intention to leave and their actual action of leaving subsequently. Those employees who had a higher intention to leave were indeed more likely to leave the company. The median of the "Stayed" group's intention level was approximately 3 on the scale, versus approximately 5 for the employees who left -- although the outlier and whiskers of the Stayed group suggest some employees may have remained at the company, despite intending to leave (perhaps remaining while being disgruntled).
+
+Ultimately, the data does make sense in this context, given one might expect employees who have indicated a stronger intention to leave would be more likely to leave, though there are likely many other factors affecting this decision that are not captured by this analysis (possibly explaining those in the Left group who quit the company despite indicating they had a lower intention of doing so).
+
+# 2. Escaping from an oil rig
+
+a\. We'll read in the data taken from the simulated escape exercise using read_csv. The count function indicates there are 26 observations.
+
+```{r}
+escape_training <- read_csv("http://ritsokiguess.site/datafiles/ex01.36.csv")
+escape_training
+```
+
+We'll use the count() function to display the number of observations. As seen below, there are 26 observations (alternatively, we could have just counted the rows manually, or looked at the tibble indicating 26x1 here).
+
+```{r}
+escape_training %>% count()
+```
+
+b\. We'll make a suitable plot of the escape times. Given the small amount of observations, and having checked on PASIAS (https://ritsokiguess.site/pasias2/one-sample-inference.html#hunter-gatherers-in-australia-1) in regards to the appropriate number of bins (as well as some experimentation), I've determined that 6 bins seems to be the best option for displaying the distribution.
+
+```{r}
+ggplot(escape_training, aes(x = escape_time)) + geom_histogram(bins = 6)
+```
+
+Given the data are roughly symmetric -- clustered around the central bins -- it is likely that the mean and median are close to each other, suggesting an approximately normal distribution (further, this was confirmed via numerical summary; the mean and median are approximately 1 second apart).
+
+c\. We can expect a t-procedure to be reasonably accurate for these data because t-tests rely on the assumption that the data is normally distributed, which is apparent in the histogram. Furthermore, the sample size is not excessively small (n = 26). With an adequate sample size, the Central Limit Theorem suggests that the sampling distribution of the sample mean will be approximately normal, with small deviations being mitigated by the sample size.
+
+d\. Given a standard escape time for this kind of training exercise is 6 minutes (360 seconds), we can visibly see that the majority of our sample data fall higher on the distribution than 360 seconds -- as evidenced by the histogram (and verfied via computation indicating a mean time for our sample of \~ 370 seconds, and median of \~369.5 seconds). Thus, it is safe to conclude that the mean escape time for all oil workers in this sample is greater than 360 seconds -- though we would need a hypothesis test to make a more definitive statement.
+
+\--\> The point was to do a t-test, idiot.
+
+```{r}
+with(escape_training, t.test(escape_time, mu = 360, alternative = "greater"))
+```
+
+e\. We'll use the t.test function to obtain a 90% confidence interval for the population mean escape time. Visible below is the interval: 362.5323-378.8523.
+
+```{r}
+escape_t_test <- t.test(escape_training$escape_time, conf.level = 0.90)
+escape_t_test
+```

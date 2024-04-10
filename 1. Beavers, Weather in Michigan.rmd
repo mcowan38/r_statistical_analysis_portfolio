@@ -1,0 +1,79 @@
+---
+title: "STAC32 - Assignment 1"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+## 1. Body Temperature of a Beaver
+
+a\. First I'll read in the data using the URL (it is a .csv), then display the data.
+
+```{r}
+beavers <- read.csv("http://ritsokiguess.site/datafiles/beaver.csv")
+beavers
+```
+
+b\. Here's a histogram of the body temperatures.
+
+```{r}
+ggplot(beavers, aes(x = temp)) + geom_histogram(bins = 10)
+```
+
+c\. I'll make a boxplot to assess the belief that the beavers have higher body temperatures when they are active versus not active.
+
+```{r}
+beavers %>% group_by(activ) %>% summarize(median_temp = median(temp))
+ggplot(beavers, aes(x = activ, y = temp)) + geom_boxplot()
+```
+
+d\. As evidenced by the boxplot, the researchers' beliefs -- specifically, that beavers have higher body temperature on average when active than when they are not -- are justified. Median beaver body temperatures while in their lodge (median = 37.095°C) were observed to be lower than median temperatures measured while outside their lodge (median = 37.915°C). Visually, there is very little overlap in the boxplots even when considering the whiskers of the two conditions.
+
+## 2. Temperatures in Ann Arbor, Michigan
+
+a\. Looking at the data file, the values are stacked on top of each other in a list, and separated by a dash (-) separating year and temperature recorded.
+
+b\. I'll read the data file into a dataframe using the read_delim function, specifying the data is separated by a "-".
+
+```{r}
+ann_arbor <- read_delim("https://ritsokiguess.site/datafiles/aatemp.txt", "-")
+ann_arbor
+```
+
+c\. In this context, we are interested in the trend in Ann Arbor temperatures over time, thus it is appropriate to treat year as a quantitative variable. As a result, I'll make a scatterplot suitable for two quantitative variables (year and temperature) -- with a regression line to better demonstrate the relationship.
+
+```{r}
+ggplot(ann_arbor, aes(x = year, y = temp)) + geom_point () + geom_smooth(method = "lm")
+```
+
+d\. There is an observable trend in annual mean temperature over time. Visibly, the graph demonstrates that mean temperatures have slightly increased over the 150 year time-span of the data set, from \~ 47°C in 1850 to \~48°C.
+
+## 3. Learning to walk
+
+a\. I'll run the two lines intended for R on my own computer *and* Windows.
+
+```{r}
+my_url <- "http://ritsokiguess.site/datafiles/walking.xls"
+download.file(my_url, "walking.xls", mode = "wb")
+```
+
+b\. The name of the file is walking.xls, while the name of the two sheets within the file are "description" and "data display". Data Display has the actual data in it -- categorized by treatment and age_walk. I'll read it in now.
+
+```{r}
+library(readxl)
+walking_data <- read_excel("walking.xls", sheet = "data display")
+walking_data
+```
+
+c.  I'll now make a boxplot of the data.
+
+```{r}
+ggplot(walking_data, aes(x = treatment, y = age_walk)) + geom_boxplot()
+```

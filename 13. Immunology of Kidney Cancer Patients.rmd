@@ -1,0 +1,179 @@
+---
+title: "STAD29 - Assignment 5"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(MASS) # issue with "select", that conflicts with our reg. select.
+library(marginaleffects)
+library(broom)
+library(nnet) # for multinom
+library(survival)
+library(survminer)
+library(conflicted) # To deal with MASS, we use "conflicted" package.
+conflict_prefer("select", "dplyr") # whenever you run into "this", use the one from tidyverse ("dplyr").
+conflict_prefer("filter", "dplyr")
+conflict_prefer("rename", "dplyr")
+conflict_prefer("summarize", "dplyr")
+```
+
+# **1. Hypernephroma**
+
+**a.**
+
+```{r}
+hypernephroma <- read_csv("http://ritsokiguess.site/datafiles/lee_hypernephroma.csv")
+hypernephroma
+```
+
+**b.**
+
+```{r}
+hypernephroma_1 <- hypernephroma %>% 
+  mutate(treatment_start_date = mdy(treatment_start), 
+         treatment_end_date = mdy(treatment_end))
+hypernephroma_1
+```
+
+**c.**
+
+```{r}
+hypernephroma_2 <- hypernephroma_1 %>%
+  mutate(days_between = treatment_end_date - treatment_start_date)
+hypernephroma_2
+```
+
+**d.**
+
+We'll use Surv to combine the numerical days + status (dead or alive).
+
+```{r}
+hypernephroma_3 <- hypernephroma_2 %>%
+  mutate(response = Surv(days_between, status == "dead"))
+hypernephroma_3
+```
+
+This distinguishes correctly between patients whose treatment_end was their date of death and those who were alive -- specifically, those who were alive have a "+" after the response variable (working as intended).
+
+**e.**
+
+```{r}
+hypernephroma.1 <- coxph(response ~ age + gender + monilia + mumps + PPD + PHA + SK_SD, data = hypernephroma_3)
+summary(hypernephroma.1)
+```
+
+**f.**
+
+```{r}
+step(hypernephroma.1, trace = 0) -> hypernephroma.2
+summary(hypernephroma.2)
+```
+
+**g.**
+
+Just having another look at the data:
+
+```{r}
+hypernephroma_3
+```
+
+Here we set up new data grid from 40-80 years of age (by increments of 10), and R will take the categories from the model (automatically using representative values for monilia and mumps).
+
+```{r}
+ages <- seq(40, 80, 10)
+hypernephroma_new_1 <- datagrid(model = hypernephroma.2, age = ages)
+hypernephroma_new_1
+```
+
+Now we'll use survfit for the predicted survival probabilities over time from ages 40 through 80:
+
+```{r}
+predicted_survival_1 <- survfit(hypernephroma.2, newdata = hypernephroma_new_1, data = hypernephroma_3) # Note: needs the "data =" specified, was breaking in the plotting part otherwise.
+summary(predicted_survival_1)
+```
+
+Then, we plot:
+
+```{r}
+plot_survival_1 <- ggsurvplot(predicted_survival_1, conf.int = FALSE)
+plot_survival_1
+```
+
+**h.** *Describe the effect of increasing age on your plot, and explain briefly how this is consistent with the summary output from your model.*
+
+-   Consistently across each of the age categories -- ages 40, 50, 60, 70, and 80 -- the probability of survival decreases in larger increments over time; this trend progressively steepens in its decline in survival proaabibilities for older age groups over time.
+-   Looking back at the model, this effect is consistent with the summary output. Notably, age has a positive coefficient (suggesting the event of death is likely to happen sooner as age increases). Visibly, Strata 1 -- corresponding with age 40 -- has the highest probability of survival over time, while the oldest age group (80) has the lowest probability of survival over time.
+
+**i.** Repeat the previous two parts for mumps skin test values of 0, 6, and 12.
+
+**Mumps** **at 0**:
+
+```{r}
+ages <- seq(40, 80, 10)
+mumps_0 = 0
+hypernephroma_new_2 <- datagrid(model = hypernephroma.2, age = ages, mumps = mumps_0)
+hypernephroma_new_2
+```
+
+```{r}
+predicted_survival_2 <- survfit(hypernephroma.2, newdata = hypernephroma_new_2, data = hypernephroma_3) # Note: needs the "data =" specified, was breaking in the plotting part otherwise.
+summary(predicted_survival_2)
+```
+
+```{r}
+plot_survival_2 <- ggsurvplot(predicted_survival_2, conf.int = FALSE)
+plot_survival_2
+```
+
+-   Again, we observe consistently across each of the age categories -- ages 40, 50, 60, 70, and 80 -- the probability of survival decreases in larger increments over time; this trend progressively steepens in its decline in survival probabilities for older age groups over time. Looking back at the model, this effect is consistent with the summary output. Notably, age has a positive coefficient (suggesting the event of death is likely to happen sooner as age increases). Visibly, Strata 1 -- corresponding with age 40 -- has the highest probability of survival over time, while the oldest age group (80) has the lowest probability of survival over time.
+-   Interestingly, when the mumps skin test is at a value of 0, we see the probability of survival drop at a steeper decline compared to the original plot (where we had R provide the representative value of 6.636364). With a search on Google, the MSTA (Mumps Skin Test Antigen) tests the body's reaction to the suspension of a killed mumps virus, suggesting that a higher value (for example 12) is desirable, as it indicates a patient's immune response to the dead Mumps virus. Therefore, it would make sense that those who do not have a strong immune response to the dead Mumps virus (i.e., when the response is "0") likely have a weaker immune system -- which would presumably reflect a decreased survival probability.
+
+**Mumps at 6**:
+
+```{r}
+ages <- seq(40, 80, 10)
+mumps_6 = 6
+hypernephroma_new_3 <- datagrid(model = hypernephroma.2, age = ages, mumps = mumps_6)
+hypernephroma_new_3
+```
+
+```{r}
+predicted_survival_3 <- survfit(hypernephroma.2, newdata = hypernephroma_new_3, data = hypernephroma_3) # Note: needs the "data =" specified, was breaking in the plotting part otherwise.
+summary(predicted_survival_3)
+```
+
+```{r}
+plot_survival_3 <- ggsurvplot(predicted_survival_3, conf.int = FALSE)
+plot_survival_3
+```
+
+-   Again, we observe consistently across each of the age categories -- ages 40, 50, 60, 70, and 80 -- the probability of survival decreases in larger increments over time; this trend progressively steepens in its decline in survival probabilities for older age groups over time. Looking back at the model, this effect is consistent with the summary output. Notably, age has a positive coefficient (suggesting the event of death is likely to happen sooner as age increases). Visibly, Strata 1 -- corresponding with age 40 -- has the highest probability of survival over time, while the oldest age group (80) has the lowest probability of survival over time.
+-   Interestingly, when the mumps skin test is at a value of 6, we see the probability of survival mirror the original plot (where we had R provide the representative value of 6.636364). To reiterate, the MSTA (Mumps Skin Test Antigen) tests the body's reaction to the suspension of a killed mumps virus, suggesting that a higher value (for example 12) is desirable, as it indicates a patient's immune response to the dead Mumps virus. Therefore, it would make sense that those who have a moderate response to the dead Mumps virus (i.e., when the response is "6") have a stronger immune system compared to a response of 0 -- which would presumably reflect the greater survival probability across the groups.
+
+**Mumps at 12**:
+
+```{r}
+ages <- seq(40, 80, 10)
+mumps_12 = 12
+hypernephroma_new_4 <- datagrid(model = hypernephroma.2, age = ages, mumps = mumps_12)
+hypernephroma_new_4
+```
+
+```{r}
+predicted_survival_4 <- survfit(hypernephroma.2, newdata = hypernephroma_new_4, data = hypernephroma_3) # Note: needs the "data =" specified, was breaking in the plotting part otherwise.
+summary(predicted_survival_4)
+```
+
+```{r}
+plot_survival_4 <- ggsurvplot(predicted_survival_4, conf.int = FALSE)
+plot_survival_4
+```
+
+-   Again, we observe consistently across each of the age categories -- ages 40, 50, 60, 70, and 80 -- the probability of survival decreases in larger increments over time; this trend progressively steepens in its decline in survival probabilities for older age groups over time. Looking back at the model, this effect is consistent with the summary output. Notably, age has a positive coefficient (suggesting the event of death is likely to happen sooner as age increases). Visibly, Strata 1 -- corresponding with age 40 -- has the highest probability of survival over time, while the oldest age group (80) has the lowest probability of survival over time.
+-   Lastly, when the mumps skin test is at a value of 12, we see the probability of survival (across each of the age groups) appear to be higher than the original plot (where we had R provide the representative value of 6.636364). To reiterate, the MSTA (Mumps Skin Test Antigen) tests the body's reaction to the suspension of a killed mumps virus, suggesting that a higher value (for example 12) is desirable, as it indicates a patient's immune response to the dead Mumps virus. Therefore, it would make sense that those who have a stronger response to the dead Mumps virus (i.e., when the response is "12") have a stronger immune system compared to a response of 0 or 6 -- which would presumably reflect the even greater survival probability we see in this plot (across all the groups).

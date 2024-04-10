@@ -1,0 +1,122 @@
+---
+title: "STAD29 - Assignment 2"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(marginaleffects)
+```
+
+# **1. Low birth weight**
+
+**a.** I'll use read_csv here.
+
+```{r}
+weight <- read_csv ("http://ritsokiguess.site/datafiles/lowbwt.csv")
+weight
+```
+
+**b.**
+
+```{r}
+weight_factor <- weight %>% mutate(low_weight = factor(low))
+weight_factor
+```
+
+```{r}
+weight.2 <- glm(low_weight ~ lwt + smoke, family = "binomial", data = weight_factor)
+summary(weight.2)
+```
+
+**c.**
+
+We know the model is predicting whether or not the baby is of *low* birth weight (as opposed to normal weight) because normalweight is the first factor in low_weight, and thus treated as the reference category -- meaning, the model is estimating the probability of an observation being in the other category (underweight). As such, the coefficients indicate the effect of lwt and smoke on the likelihood of a baby being underweight.
+
+Normalweight is taken as the first factor because it comes first alphabetically (thus R will treat it as the reference category), but we can double-check which factor comes first with levels (below).
+
+```{r}
+levels(weight_factor$low_weight)
+```
+
+**d.** Neither of the explanatory variables -- lwt (mother's weight at last menstrual period) and smoke (whether or not mother smoked during pregnancy) -- should be removed because both variables are significant at p \< 0.05.
+
+**e.** We can use plot_predictions here to display the predicted probabilities of a baby being underweight as a function of the mother's weight (lwt -- quantitative) and her smoking status (smoke -- categorical).
+
+```{r}
+plot_predictions(weight.2, condition = c("lwt", "smoke"))
+```
+
+**f.** On the graph, we can see a downward trend in the probability of having an underweight birth as lwt (mother's weight at last menstrual period) increases. This trend is similarly observable in both smoking statuses (yes/no), with the predicted probability of low birth weight being higher for mothers who smoked during pregnancy (at the peak of the graph, visually \~ 0.575 for those who smoked, versus \~ 0.4 for those who did not). Additionally, as lwt increases, the difference in the probability of underweight birth between smoking and non-smoking mothers narrows -- indicating that the impact of smoking on low birth weight seems more pronounced at lower lwt (mother's weight at last menstrual period).
+
+# **2. Grain beetles**
+
+**a.**
+
+```{r}
+beetle <- read_csv ("http://ritsokiguess.site/datafiles/beetle.csv")
+beetle
+```
+
+**b.** In this dataframe, each row clearly refers to more than one beetle ("... the number of beetles affected, and the number exposed to that dose, were recorded"). For example, in the first row -- indicating the concentration of ethylene oxide level of 24.8 mg/l) the exposed column suggests 30 beetles were exposed, with 23 of them being "affected" (under the affected column).
+
+**c.** Here will first use cbind to create a response matrix for counting affected beetles and exposed beetles.
+
+```{r}
+beetle %>% mutate(not_affected = exposed - affected) %>%
+  select(affected, not_affected) %>%
+  as.matrix() -> beetles_response
+beetles_response
+```
+
+Now for the logistic regression using glm.
+
+```{r}
+beetle.1 <- glm(beetles_response ~ conc,
+  family = "binomial",
+  data = beetle)
+summary(beetle.1)
+```
+
+**d.** The P-value is extremely small (less than ), so there is definitely a significant effect of concentration on the probability of being affected. The Estimate (0.34) is positive, so a larger concentration goes with a larger probability of being affected.
+
+-   **Note**: Be careful not to over-interpret this, or to claim that the Estimate being 0.34 has a direct effect on the probability. It doesn't: increasing the concentration by 1 increases the log-odds of being affected by 0.34.
+
+**e.** As we can see below, the predictions that beetles being affected at ethylene oxide concentrations of 15, 20, and 25 mg/l are consistent with the original model -- which suggests there is a higher probability of beetles being affected as concentration levels increase. We can see the estimates increase at each higher level of concentration (\~ 0.29 to 0.69 to 0.92).
+
+Here we have the predicted probability (from predictions) but we'll also calculate the odds, and the **log-odds**:
+
+```{r}
+# Make a datagrid first:
+new_beetles <- datagrid(model = beetle.1, conc = seq(15, 25, 5))
+
+# Then cbind(predictions [...] and select:
+cbind(predictions(beetle.1, newdata = new_beetles)) %>% 
+  select(conc, estimate, p.value, conf.low, conf.high) %>%
+  mutate(odds = estimate / (1 - estimate)) %>%
+  mutate(log_odds = log(odds))
+```
+
+**f.** So, let's build this ourselves. The first thing is to do a bigger set of predictions. Our data go from concentrations of about 10 to about 25, so let's do a bunch of predictions this time, say from 10 to 25 in steps of 1 (you can do whatever you like, but if you have a denser grid of points, it may take longer to compute. On the other hand, if you have a less dense grid of points, the graph won't look as nice):
+
+```{r}
+new <- tibble(conc = seq(10, 25, 1))
+cbind(predictions(model = beetle.1, newdata = new))
+```
+
+Then plot the Estimates joined by lines, and use geom_ribbon to display the confidence intervals about the predictions:
+
+```{r}
+cbind(predictions(model = beetle.1, newdata = new)) %>%
+ggplot(aes(x = conc, y = estimate, ymin = conf.low, ymax = conf.high)) +
+geom_line() + geom_ribbon(alpha = 0.3)
+```
+
+-   **Note**: geom_ribbon requires a ymin for the lower end of the "ribbon" and a ymax for the upper end (not y_min and y_max as I first thought).
+
+**g.** I'd argue that the probabilities are accurately estimated. The confidence intervals are narrow and have fairly consistent widths across the concentration levels with the estimates ranging from \~0.04-0.07 from the lower and upper limits. Ultimately, for the purposes of determining if higher levels of ethylene oxide will affect the grain beetles, I believe one can be satisfied with the accuracy of this model.

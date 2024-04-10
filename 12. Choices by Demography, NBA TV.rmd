@@ -1,0 +1,121 @@
+---
+title: "STAD29 - Assignment 4"
+author: "Michael Cowan"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(MASS) # issue with "select", that conflicts with our reg. select.
+library(marginaleffects)
+library(broom)
+library(nnet) # for multinom
+library(conflicted) # To deal with MASS, we use "conflicted" package.
+conflict_prefer("select", "dplyr") # whenever you run into "this", use the one from tidyverse ("dplyr").
+conflict_prefer("filter", "dplyr")
+conflict_prefer("rename", "dplyr")
+conflict_prefer("summarize", "dplyr")
+```
+
+## 1. Choice-box
+
+**a.** We'll use read_csv here:
+
+```{r}
+choice_box1 <- read_csv("http://ritsokiguess.site/datafiles/Boxes.csv")
+choice_box1
+```
+
+**b.** Multinom from the nnet package is used for **multinomial logistic regression, which is appropriate for relationships between a categorical dependent variable** **with more than two categories** and one or more IVs -- specifically, assuming the response categories are nominal (meaning they do not have a natural order/ranking to them).
+
+**c.**
+
+```{r}
+choice_box1 %>% mutate(y = factor(y), age_squared = (age)^2) -> choice_box2
+choice_box2
+```
+
+```{r}
+choice_box.1 <- multinom(y ~ . , data = choice_box2)
+```
+
+**d.**
+
+```{r}
+choice_box.2 <- step(choice_box.1)
+# In this case, drop1 would not work - due to a bug in multinom.
+```
+
+```{r}
+choice_box.2
+```
+
+**e.**
+
+R takes the values that are the most common values for each of the variables. Specifically, this is "boy" for the gender variable, "no" for the majority_first variable. In the case of age_squared (continuous), R takes the mean (or median) of the values.
+
+-   Without age-squared assumes the effect is just straight up; age-squared allows it to bend.
+
+```{r}
+choice_box_frame <- datagrid(model = choice_box.2, age = c(5:13))
+choice_box_frame
+```
+
+**f.** *Calculate and display your predictions side by side with he corresponding explanatory variable values. Arrange your predictions in a way that makes them easier to compare.*
+
+Predictions: select the output columns you want to keep, and then pivot the group (predicted response category) wider:
+
+```{r}
+cbind(predictions(choice_box.2, newdata = choice_box_frame)) %>%
+  select(group, age, gender, majority_first, estimate) %>%
+  pivot_wider(names_from = group, values_from = estimate)
+```
+
+**g.**
+
+```{r}
+plot_predictions(model = choice_box.2, condition = c("age", "group"))
+```
+
+## 2. NBA Schedule
+
+**a.**
+
+```{r}
+sched <- read_csv("http://ritsokiguess.site/datafiles/nba_sched.csv")
+sched
+```
+
+**b.**
+
+```{r}
+sched %>% mutate(new_date = mdy(date), month = month(new_date), day = day(new_date), year = year(new_date), day_of_week = wday(new_date, label = TRUE)) -> sched_2
+sched_2
+```
+
+```{r}
+sched_2 %>%
+  group_by(day_of_week) %>%
+  summarise(number_of_games = n()) %>%
+  arrange(desc(number_of_games)) -> sched_3
+sched_3
+```
+
+**c.**
+
+```{r}
+NZ_games <- sched_2 %>% unite(date_time, new_date, start_eastern, sep = " ") %>% mutate(dt_EST = ymd_hm(date_time, tz = "America/Toronto")) %>% mutate(dt_auckland = with_tz(dt_EST, tz = "Pacific/Auckland"))
+NZ_games
+```
+
+```{r}
+games_after_4AUCK <- NZ_games %>%
+  filter(hour(dt_auckland) >= 16)
+games_after_4AUCK
+```
+
+There are 132 games (from 12/26/23 through 3/8/24) that the friend who lives in Auckland can watch. Primarily, these look like home games hosted on the West coast (primarily in California and Arizona), that traditionally have a later start time compared to East coast hosted games (ex. Toronto, Boston).

@@ -1,0 +1,113 @@
+---
+title: "STAC32 - Assignment 6"
+author: "Michael Cowan - 997887032"
+format: 
+  html:
+    embed-resources: true
+    df-print: paged
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(devtools)
+install_github("nxskok/smmr")
+library(smmr)
+```
+
+# **1. Digestion in Horses**
+
+**a.** I'll read in the data with read_csv.
+
+```{r}
+horse_data <- read_csv("http://ritsokiguess.site/datafiles/digestcoefs.csv")
+horse_data
+```
+
+**b.** Matched pairs experiments refer to situations where two data points are collected under different conditions but are closely related -- "paired" -- often coming from the same experimental unit or subject. In this case, there is more than one observation per horse; each horse is its own pair, with two related measurements, and a comparison of interest (the digestibility coefficients) is made within each horse. It is the difference in the digestibility coefficients that we're concerned with.
+
+**c.** I'll make a normal QQ plot of the data to assess the normality of the *differences* -- which is a key assumption for the match paired t-test.
+
+```{r}
+ggplot(horse_data, aes(sample = diff)) +
+   stat_qq(color = "blue") + stat_qq_line(color = "red")
+```
+
+To my eyes, the the QQ plot suggests that the distribution of the differences is approximately normal. The data points fall on and around the reference line; given the small sample size and the QQ plot showing only minor deviations, the normality assumption for conducting a paired t-test is likely not violated.
+
+**d.** Given we're trying to identify any difference between the two treatments (sodium hydroxide straw versus ordinary straw), we'll run a paired sample t-test to test the null that the mean difference is zero against a *two-sided* alternative that is not zero.
+
+```{r}
+paired_result <- with(horse_data, t.test(naoh, ordinary, paired = TRUE))
+paired_result
+```
+
+Looking at the t-test results, we can see the p-value is much \< 0.05 -- suggesting we are safe to reject the null hypothesis of no mean difference in digestibility between the treated straw and the ordinary straw. Ultimately, this suggests that, for horses, the digestibility coefficient between the two types of straw are different -- with straw treated with NaOH being more digestible.
+
+**e.** We can pull the confidence interval out of the t-test.
+
+```{r}
+paired_result$conf.int
+```
+
+The 95% CI for the mean difference in digestibility coefficients -- ranging from 9.022951 - 16.788049 -- does not contain zero, indicating that we can be 95% confidence that the true mean difference in digestibility (NaOH treated straw minus ordinary straw) is positive and lies within this range.
+
+Ultimately, on average, NaOH treatment is expected to, on average, have a sizeable positive effect on the digestibility coefficient (by \~9.02-16.88 over ordinary straw).
+
+# **2. Energy Expenditure**
+
+**a.** Again, we'll read in the data with read_csv.
+
+```{r}
+workout_data <- read_csv("http://ritsokiguess.site/datafiles/energy.csv")
+workout_data
+```
+
+**b.** We can count the number of observations for each stature group with count().
+
+```{r}
+workout_data %>%
+  count(stature)
+```
+
+There are 13 observations in the lean sample, versus 9 in the obese sample (for a total of 22).
+
+**c.** We'll use a boxplot to compare the Lean and Obese groups.
+
+```{r}
+workout_data %>%
+  ggplot(aes(x = stature, y = expend)) +
+  geom_boxplot() +
+  labs(x = "Stature", y = "Energy Expended")
+```
+
+The median energy expenditure for the obese stature group is observably higher than that of the lean group; on average, obese individuals in this sample expend more energy than the lean individuals sampled.
+
+We can also facet a normal quantile plot, since we'll need to look at the normality of the data for later.
+
+```{r}
+ggplot(workout_data, aes(sample = expend)) + 
+  stat_qq() + 
+  stat_qq_line() +
+  facet_wrap(~ stature)
+```
+
+**d.** We have a number of issues visible in the graphs.
+
+1.  Comparing the spreads of the data -- marked by the whiskers in the boxplot -- it is apparent that the obese group has a higher spread than the lean group.
+2.  In addition, the lean group shows three visible outliers.
+3.  Furthermore, the boxplots indicate skewness; the lean group is left skewed -- likely dragged by the high outlier values -- while the obese group is clearly right-skewed.
+4.  Moreover, the normal quantile plots show deviations in both groups from the normality reference line.
+
+Given these observations -- in particular, the unequal spread (especially given the unequal sample sizes) and the likely violation of the assumption of normality (visible in the QQ plot and outliers), a two-sample t-test may not be appropriate.
+
+**e.** A more suitable test to see whether obese persons use more energy on average than lean persons -- given this dataset -- would be a Mood's Median test, which is robust to non-normal distributions and less sensitive to outliers (advantageous given the issues that were visible).
+
+```{r}
+median_test <- median_test(workout_data, expend, stature)
+median_test
+```
+
+The Mood's median test indicates a statistically significant difference in median energy expenditure between lean and obese individuals yielding an extremely low p-value (p= 9.514059e-05). Given the one-sided hypothesis that obese individuals expend more energy than lean individuals, we can simply halve the p-value for a one-sided interpretation, which remains statistically significant.
+
+Ultimately, the data shows that all obese individuals had energy expenditures above the grand median, whereas the majority of lean individuals fell below this median. Therefore, we can conclude that obese individuals have a statistically significantly higher median energy expenditure compared to lean individuals. This outcome in this sample is to be expected, given that obesity is associated with greater energy expenditure.

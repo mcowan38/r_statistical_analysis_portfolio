@@ -1,5 +1,5 @@
 ---
-title: "STAD29 - Assignment 3"
+title: "Pest Control, Eat your Vegetables"
 author: "Michael Cowan"
 format: 
   html:

@@ -1,5 +1,5 @@
 ---
-title: "STAC32 - Assignment 4"
+title: "Prison Upset, Power & Exponential Distribution"
 author: "Michael Cowan"
 format: 
   html:

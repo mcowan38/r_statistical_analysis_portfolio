@@ -1,5 +1,5 @@
 ---
-title: "STAC32 - Assignment 3"
+title: "Disgruntled Employees, Oil Rig Escape 3"
 author: "Michael Cowan"
 format: 
   html:

@@ -1,1 +1,1 @@
-Demonstration of R-software statistical analyses. Later numbers reflect heightened complexity.
+Small demonstration of R-software statistical analyses profiency. Later numbers reflect heightened complexity.

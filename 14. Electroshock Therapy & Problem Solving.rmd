@@ -1,5 +1,5 @@
 ---
-title: "STAD29 - Assignment 6"
+title: "Electroshock Therapy & Problem Solving"
 author: "Michael Cowan"
 format: 
   html:

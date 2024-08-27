@@ -1,4 +1,4 @@
-## R Portfolio - Ordered by Ascending Complexity
+## R Portfolio (ascending complexity)
 
 1. **Histogram & Boxplots**
 2. **Cleaning, Filter & Select Logic**

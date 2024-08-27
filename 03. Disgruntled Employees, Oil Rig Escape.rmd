@@ -38,7 +38,7 @@ survey_and_departure
 
 d\. We'll create a new column for employee status to indicate if an employee "Left" or "Stayed", using the mutate function.
 
-**Note:** This method of combining "ifelse" from mutate was derived from STAC32 PASIAS: https://ritsokiguess.site/pasias2/tidying-data.html#bikes-on-college. Ultimately, this code uses mutate to create a new 'status' from the prior 'departure_date' column in the data frame -- with the values of Stayed and Left (NA).
+**Note:** This method of combining "ifelse" from mutate was derived from PASIAS: https://ritsokiguess.site/pasias2/tidying-data.html#bikes-on-college. Ultimately, this code uses mutate to create a new 'status' from the prior 'departure_date' column in the data frame -- with the values of Stayed and Left (NA).
 
 ```{r}
 survey_and_departure_new <- survey_and_departure %>%
@@ -82,8 +82,6 @@ Given the data are roughly symmetric -- clustered around the central bins -- it 
 c\. We can expect a t-procedure to be reasonably accurate for these data because t-tests rely on the assumption that the data is normally distributed, which is apparent in the histogram. Furthermore, the sample size is not excessively small (n = 26). With an adequate sample size, the Central Limit Theorem suggests that the sampling distribution of the sample mean will be approximately normal, with small deviations being mitigated by the sample size.
 
 d\. Given a standard escape time for this kind of training exercise is 6 minutes (360 seconds), we can visibly see that the majority of our sample data fall higher on the distribution than 360 seconds -- as evidenced by the histogram (and verfied via computation indicating a mean time for our sample of \~ 370 seconds, and median of \~369.5 seconds). Thus, it is safe to conclude that the mean escape time for all oil workers in this sample is greater than 360 seconds -- though we would need a hypothesis test to make a more definitive statement.
-
-\--\> The point was to do a t-test, idiot.
 
 ```{r}
 with(escape_training, t.test(escape_time, mu = 360, alternative = "greater"))

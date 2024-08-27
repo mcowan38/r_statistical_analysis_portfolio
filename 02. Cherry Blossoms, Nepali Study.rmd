@@ -52,8 +52,6 @@ a\. Once again, we're dealing with a .csv file. I've read in the data and displa
 ```{r}
 child_study <- read.csv("http://ritsokiguess.site/datafiles/nepali.csv")
 child_study
-
-
 ```
 
 b\. Let's display the weights and heights for all the children with the select function.

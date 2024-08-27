@@ -41,7 +41,7 @@ df <- data.frame(
 df
 ```
 
-With this dataframe, we'll use cbind(predictions to predict the average (mean) educational level for state A and B -- displaying the predicted mean response, the lower and upper confidence limits, and the values of the explanatory variables (income, young, and urban).
+With this dataframe, we'll use cbind(predictions to predict the average \[mean\] educational level for state A and B -- displaying the predicted mean response, the lower and upper confidence limits, and the values of the explanatory variables (income, young, and urban).
 
 ```{r}
 cbind(predictions(spend.1, newdata = df)) %>% 

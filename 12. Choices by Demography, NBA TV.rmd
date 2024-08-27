@@ -65,7 +65,7 @@ choice_box_frame <- datagrid(model = choice_box.2, age = c(5:13))
 choice_box_frame
 ```
 
-**f.** *Calculate and display your predictions side by side with he corresponding explanatory variable values. Arrange your predictions in a way that makes them easier to compare.*
+**f.**
 
 Predictions: select the output columns you want to keep, and then pivot the group (predicted response category) wider:
 

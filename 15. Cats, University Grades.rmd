@@ -89,7 +89,7 @@ sociology <- read_csv("http://ritsokiguess.site/datafiles/socgrades.csv")
 sociology
 ```
 
-**b.** *Why would a MANOVA analysis be suitable here?*
+**b.**
 
 Assumptions with BoxM (will refer to later):
 
